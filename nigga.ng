@@ -1,0 +1,37 @@
+var str varible : '';
+
+var int one : 0;
+
+var int two : 0;
+
+input(one,int);
+input(varible,str);
+input(two,int);
+
+if(varible == '+')
+{
+  lnwrite(one + two);
+};
+
+if(varible == '-')
+{
+  lnwrite(one - two);
+};
+
+if(varible == '*')
+{
+  lnwrite(one * two);
+};
+
+if(varible == '/')
+{
+  lnwrite(one / two);
+};
+
+proc nigger{
+  lnwrite('');
+  lnwrite(2 + 2 * 2);
+  lnwrite('NiggaScript' + ' is a very cool!');
+};
+
+nigger;

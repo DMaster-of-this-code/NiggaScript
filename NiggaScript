@@ -1,0 +1,339 @@
+#!/usr/bin/python3
+
+code = open(input('Path to file or file name (if file in this catalog):'), 'r').read().replace('\n', '').replace('  ','')
+codeForLoops = ''
+date = [{'Variables': {'int': {}, 'str': {} },'Procedures' : {} } ]
+
+
+def setVarible(code):
+	a = code.split(':')
+	b = a[0]
+	c = b.split(' ')
+	value = ''
+	type_ = c[1]
+	name = c[2]
+	if type_ == 'int':
+		for i in a[1]:
+			if i == ';':
+				break
+			value += i
+		date[0]['Variables'][type_][name] = int(parser(value))
+
+	elif type_ == 'str':
+		is_count = False
+		for i in a[1]:
+			if i == ';':
+				break
+			elif i == '"' or i == "'":
+				is_count = not is_count
+				continue
+			elif is_count:
+				value += i
+		date[0]['Variables'][type_][name] = parser(value)
+
+def setProcedure(code,name):
+	a = name.split('{')[0].split(' ')[1]
+	date[0]['Procedures'][a] = code
+
+def counter(code):
+	count = 0
+	isCount = True
+	for i in code:
+		if i == '{':
+			isCount = False
+		elif i == '}':
+			isCount = True
+		elif i == ';' and isCount:
+			count += 1
+	return count
+
+
+def getCode(code):
+	findOperand = False
+	code_ = ''
+
+	for i in code:
+		if i == '{':
+			findOperand = True
+			continue
+
+		if findOperand:
+			if i == '}':
+				return code_
+			code_ += i
+
+
+def getArgs(code):
+	findOperand = False
+	args = ''
+
+	for i in code:
+
+		if i == '(':
+			findOperand = True
+			continue
+
+		elif i == ')':
+			return parser(args)
+
+		elif findOperand:
+			args += i
+
+
+def updatecodeForLoops(code):
+	code_ = list(code)
+
+	building = ''
+
+	for i in range(len(code_)):
+		if code_[i] == ';':
+			code_[i] = ''
+			break
+		code_[i] = ''
+
+	for i in code_:
+		building += i
+
+	return building
+
+
+def deleteLoopCode():
+	global code
+
+	code_ = list(code)
+
+	building = ''
+
+	deleteAllowed = False
+
+	for i in range(len(code_)):
+
+		if code_[i] == '}':
+			deleteAllowed = True
+
+		if code_[i] == ';':
+
+			code_[i] = ''
+
+			if deleteAllowed:
+				break
+
+		code_[i] = ''
+
+	for i in code_:
+		building += i
+
+	code = building
+
+
+def updateGlobalCode():
+	global code
+
+	code_ = list(code)
+
+	building = ''
+
+	for i in range(len(code_)):
+		if code_[i] == ';':
+			code_[i] = ''
+			break
+
+		code_[i] = ''
+
+	for i in code_:
+		building += i
+
+	code = building
+
+
+def split(code):
+	building = ''
+	output = []
+	isWrite = False
+	start = True
+	index = 0
+
+	for i in code:
+
+		building += i
+
+		if not start:
+			index += 1
+
+		elif start:
+			start = False
+
+		if index + 1 == len(code):
+			output.append(building.strip())
+			building = ''
+
+		if i == "'" or i == '"':
+			isWrite = not isWrite
+
+		elif i == ' ' and isWrite == False:
+			output.append(building.strip())
+			building = ''
+			continue
+
+	return output
+
+
+def parser(code):
+	args = split(code)
+	index = 0
+	for i in args:
+		if i in date[0]['Variables']['int']:
+			args[index] = args[index].replace(i, str(date[0]['Variables']['int'][i]))
+
+		if i in date[0]['Variables']['str'] and not i.startswith("'") and not i.startswith('"'):
+			args[index] = f"'{args[index].replace(i, date[0]['Variables']['str'][i])}'"
+		index += 1
+	try:
+		return eval(''.join(args))
+	except:
+		return ''.join(args)
+
+
+def lexser(code, Loop):
+
+	building = ''
+
+	writeFlag = False
+	lnwriteFlag = False
+	ifFlag = False
+	comandFlag = False
+	varFlag = False
+	inputFlag = False
+	procFlag = False
+	
+	for i in code:
+
+		if lnwriteFlag:
+			args = getArgs(code)
+			if not Loop:
+				updateGlobalCode()
+
+			return {'Comand': 'lnwrite', 'Args': args}
+
+		elif writeFlag:
+			args = getArgs(code)
+
+			if not Loop:
+				updateGlobalCode()
+
+			return {'Comand': 'write', 'Args': args}
+
+		elif ifFlag:
+			code_ = getCode(code)
+			args = getArgs(code)
+
+			if not Loop:
+				deleteLoopCode()
+			return {'Comand': 'if', 'Uslovie': args, 'Code': code_}
+
+		elif procFlag:
+			code_ = getCode(code)
+			name = code
+			setProcedure(code_,name)
+
+			if not Loop:
+				deleteLoopCode()
+
+			return {'Comand': 'var'}
+
+		elif varFlag:
+			setVarible(code)
+
+			if not Loop:
+				updateGlobalCode()
+
+			return {'Comand': 'var'}
+
+		elif inputFlag:
+			args = getArgs(code).split(',')
+
+			if not Loop:
+				updateGlobalCode()
+
+			return {'Comand': 'input', 'varible': args[0], 'type': args[1]}
+
+		if not comandFlag:
+			if i == ';':
+				if building in date[0]['Procedures']:
+					if not Loop:
+						updateGlobalCode()
+					return {'Comand' : 'callproc','Code' : date[0]['Procedures'][building]}
+				continue
+
+			building += i
+
+			if building == 'write':
+				writeFlag = True
+				comandFlag = True
+				building = ''
+
+			elif building == 'lnwrite':
+				lnwriteFlag = True
+				comandFlag = True
+				building = ''
+
+			elif building == 'proc':
+				procFlag = True
+				comandFlag = True
+				building = ''
+
+			elif building == 'if':
+				ifFlag = True
+				comandFlag = True
+				building = ''
+
+			elif building == 'var':
+				varFlag = True
+				comandFlag = True
+				building = ''
+
+			elif building == 'input':
+				inputFlag = True
+				comandFlag = True
+				building = ''
+
+
+def codeHandler(code, Loop):
+	a = lexser(code, Loop)
+
+	if a['Comand'] == 'write':
+		print(a['Args'], end='')
+
+	elif a['Comand'] == 'lnwrite':
+		print(a['Args'])
+
+	elif a['Comand'] == 'if':
+		whoTrue = a['Uslovie']
+
+		if whoTrue:
+			codeForLoops = a['Code']
+
+			for i in range(counter(codeForLoops)):
+				codeHandler(codeForLoops, True)
+				codeForLoops = updatecodeForLoops(codeForLoops)
+
+	elif a['Comand'] == 'var':
+
+		pass
+
+	elif a['Comand'] == 'input':
+		if a['type'] == 'int':
+			date[0]['Variables'][a['type']][a['varible']] = int(input())
+
+		elif a['type'] == 'str':
+			date[0]['Variables'][a['type']][a['varible']] = input()
+
+	elif a['Comand'] == 'callproc':
+		codeForLoops = a['Code']
+		for i in range(counter(codeForLoops)):
+			codeHandler(codeForLoops, True)
+			codeForLoops = updatecodeForLoops(codeForLoops)
+
+
+for i in range(counter(code)):
+	codeHandler(code, False)
